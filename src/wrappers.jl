@@ -52,7 +52,7 @@ function SizeAndShapeWithReflectionMCMC(
     meanmodel = "linear",
     covariancemodel = "general_nocrosscorrelation",
     keepreflection = "yes",
-    removelocation= "helmert",
+    removelocation= "centering",
     removesize = "no",
     rmatdosample = true,
     verbose = false

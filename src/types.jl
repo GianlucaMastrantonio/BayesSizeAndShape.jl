@@ -130,6 +130,25 @@ struct RemoveLocationHelmert{VP<:ValueP} <: DoRemoveLocation
 
 end
 
+
+
+struct RemoveLocationCentering{VP<:ValueP} <: DoRemoveLocation
+
+    matrix::Array{Float64}
+    valp::VP
+
+    function RemoveLocationCentering(k::Int64, val::VP) where {VP<:ValueP}
+
+        #H::Matrix{Float64} = zeros(Float64, k + 1, k + 1)
+        H::Matrix{Float64} = fill(-1.0 / (k + 1), k + 1, k + 1) + I
+
+        H = H[2:end, :]
+        new{VP}(H, val)
+
+    end
+
+end
+
 #struct DoNotRemoveLocation{VP<:ValueP} <: RemoveLocation
 
 #    matrix::Array{Float64}
@@ -220,8 +239,7 @@ struct SSDataType{R<:Reflection,RL<:RemoveLocation,VP<:ValueP,RS<:RemoveSize,IC<
     end
 
 end
-
-function SSDataType(landmarks::Array{Float64}, reflection::KeepReflection, removelocation::RemoveLocationHelmert, valp::P, removesize::DoNotRemoveSize, identification::IC) where {IC<:IdentifiabilityConstraint, P<:ValueP}
+function SSDataType(landmarks::Array{Float64}, reflection::KeepReflection, removelocation::RL, valp::P, removesize::DoNotRemoveSize, identification::IC) where {IC<:IdentifiabilityConstraint, P<:ValueP, RL<:DoRemoveLocation}
 
     k::Int64 = size(landmarks, 1) - 1
     n::Int64 = size(landmarks, 3)
@@ -234,7 +252,7 @@ function SSDataType(landmarks::Array{Float64}, reflection::KeepReflection, remov
     # FIXME: sdata should be the shape data
     sdata = deepcopy(ssdata)
 
-    SSDataType{KeepReflection,RemoveLocationHelmert,P,DoNotRemoveSize,IC}(landmarks, nolocdata, ssdata, sdata, ssdata_rotmat, reflection, removelocation, valp, removesize, identification, n, k, p)
+    SSDataType{KeepReflection,RL,P,DoNotRemoveSize,IC}(landmarks, nolocdata, ssdata, sdata, ssdata_rotmat, reflection, removelocation, valp, removesize, identification, n, k, p)
 
 end
 
@@ -584,7 +602,7 @@ function create_object_output(sampletosave::Int64,mean_mcmc::MCMCLinearMean, cov
     generalMCMCObjectOUT(betaOUT, sigmaOUT,rmatOUT,angleOUT,betaidentOUT,sigmaidentOUT,rmatidentOUT,angleidentOUT, betaDF,sigmaDF,rmatDF,angleDF, sampletosave )
 end
 
-function copy_parameters_out(imcmc::Int64, out::generalMCMCObjectOUT, mean_mcmc::MCMCLinearMean, datamodel::SSDataType{<:KeepReflection, <:RemoveLocationHelmert, <:ValueP, <:DoNotRemoveSize,<:GramSchmidtMean}, covariance_mcmc::MCMCGeneralCoVarianceIndependentDimension, data_mcmc::MCMCNormalDataKeepSize) 
+function copy_parameters_out(imcmc::Int64, out::generalMCMCObjectOUT, mean_mcmc::MCMCLinearMean, datamodel::SSDataType{<:KeepReflection, <:DoRemoveLocation, <:ValueP, <:DoNotRemoveSize,<:GramSchmidtMean}, covariance_mcmc::MCMCGeneralCoVarianceIndependentDimension, data_mcmc::MCMCNormalDataKeepSize)
 
 
     out.nonidentbeta[imcmc,:,:] = mean_mcmc.beta_mcmc[:,:]

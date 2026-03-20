@@ -3,7 +3,7 @@ module BayesSizeAndShape
 ##### Packages
 using Distributions, Random
 using LinearAlgebra, PDMats
-using ProgressMeter
+using ProgressMeter, Revise
 using Kronecker
 using DataFrames
 using CategoricalArrays
@@ -51,6 +51,7 @@ include(joinpath("external_function.jl"))
     ### TIPES
     KeepReflection,
     RemoveLocationHelmert,
+    RemoveLocationCentering,
     ValueP2,
     ValueP3,
     DoNotRemoveSize,
@@ -66,7 +67,9 @@ include(joinpath("external_function.jl"))
     ### EXTERNAL
     sizeshape_helmertproduct_reflection,
     posterior_samples_beta,
-    posterior_samples_sigma
+    posterior_samples_sigma,
+    sizeshape_helmertproduct_reflection_user,
+    sample_predictive_zb
 
     
     #NoPriorBeta,

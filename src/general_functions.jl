@@ -90,7 +90,7 @@ function compute_designmatrix(zmat::DataFrame, k::Int64)::Array{Float64,3}
 
 end
 
-function remove_location(landmarks::Array{Float64,3}, removelocation::RemoveLocationHelmert)::Array{Float64,3} 
+function remove_location(landmarks::Array{Float64,3}, removelocation::DoRemoveLocation)::Array{Float64,3} 
     
     
     H = removelocation.matrix
