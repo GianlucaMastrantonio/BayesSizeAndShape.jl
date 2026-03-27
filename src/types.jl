@@ -558,7 +558,7 @@ function create_object_output(sampletosave::Int64,mean_mcmc::MCMCLinearMean, cov
     p::Int64 = size(mean_mcmc.beta_mcmc,2)
     n::Int64 = size(data_mcmc.rmat_mcmc,3)
     k::Int64 = size(covariance_mcmc.covariance_mcmc,1)
-    kd::Int64 = size(mean_mcmc.beta_mcmc,1)
+    kd::Int64 = size(mean_mcmc.beta_mcmc,1) # size kd means flattened betas
     d::Int64 = mean_model.d
     pangle::Int64 = size(data_mcmc.angles_mcmc,1)
     sizebetaout1::Int64 = 0
@@ -609,15 +609,25 @@ function copy_parameters_out(imcmc::Int64, out::generalMCMCObjectOUT, mean_mcmc:
     out.nonidentsigma[imcmc,:,:] =  covariance_mcmc.covariance_mcmc[:,:]
     out.nonidentrmat[imcmc,:,:,:] = data_mcmc.rmat_mcmc[:,:,:]
     out.nonidentangle[imcmc,:,:] = data_mcmc.angles_mcmc[:,:]
-
-    gammamat = standardize_reg_computegamma(mean_mcmc.beta_mcmc, datamodel.valp,datamodel.identifiability)
     
-    out.identbeta[imcmc,:,:] = mean_mcmc.beta_mcmc*gammamat
+    M_raw = mean_mcmc.mean_mcmc[:, :, 1] # average configuration for the first iteration
+    M_anchored = M_raw .- M_raw[10, :]' # subtract the first row to have first landmark in (0,0)
+    r = sqrt(sum(M_anchored[1,:].^2)) # compute the distance from the origin
+    x = M_anchored[1,1]
+    y = M_anchored[1,2]
+    gammamat = [ x/r  -y/r ; 
+             y/r   x/r ]
+
+    #gammamat = standardize_reg_computegamma(mean_mcmc.beta_mcmc, datamodel.valp,datamodel.identifiability)
+    #gammamat = standardize_reg_computegamma_gimmi(mean_mcmc.beta_mcmc, datamodel.valp,datamodel.identifiability)
+    #out.identbeta[imcmc,:,:] = (mean_mcmc.beta_mcmc .-mean_mcmc.beta_mcmc[1,:]') *gammamat
+    out.identbeta[imcmc,:,:] = mean_mcmc.beta_mcmc *gammamat
     out.identsigma[imcmc,:,:] = covariance_mcmc.covariance_mcmc[:,:]
     app_rot = deepcopy(data_mcmc.rmat_mcmc)
     app_angle = deepcopy(data_mcmc.angles_mcmc)
     for i = 1:size(data_mcmc.rmat_mcmc,3)
-        app_rot[:,:,i] = transpose(gammamat)*app_rot[:,:,i]
+        app_rot[:,:,i] .= transpose(gammamat)*app_rot[:,:,i]
+        #app_rot[:,:,i] .= app_rot[:,:,i]*transpose(gammamat)
         compute_angle_from_rmat(i,app_angle, app_rot, datamodel.valp, datamodel.reflection)
         #@assert isapprox(det(app_rot[:,:,i]),1.0)  "ss" * string(det(app_rot[:,:,i]))
     end

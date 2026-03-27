@@ -7,7 +7,7 @@ end
 function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
     a1 = reg[1, :]
-    a2 = reg[2, :]
+    a2 = reg[2,:]
     g1 = a1 / norm(a1, 2)
     g2 = (a2 - (transpose(a2) * g1) * g1) / norm(a2 - (transpose(a2) * g1) * g1, 2)
     gammamat = reshape([g1; g2], (2, 2))
@@ -44,26 +44,32 @@ function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP3, inden
 
 end
 
-#function standardize_reg(reg::Matrix{Float64}, valp::ValueP2)
 
-#    reg[:,:] = reg * standardize_reg_computegamma(reg, valp)
 
-#end
+function standardize_reg_gimmi(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
-#function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP2)
+    reg[:,:] = (reg .- reg[1,:]) * standardize_reg_computegamma_gimmi(reg, valp,indentifiability)
 
-#    a1 = reg[1, :]
-#    a2 = reg[2, :]
-#    g1 = a1 / norm(a1, 2)
-#    g2 = (a2 - (transpose(a2) * g1) * g1) / norm(a2 - (transpose(a2) * g1) * g1, 2)
-#    gammamat = reshape([g1; g2], (2, 2))
+end
 
-#    if det(gammamat) < 0
-#        gammamat[:, 2] = - gammamat[:, 2]
-#    end
+function standardize_reg_computegamma_gimmi(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
-#    return gammamat
-#end
+    a2 = (reg[2, :] - reg[1,:])
+    r = sum(a2.^2)
+    gammamat = ones(2, 2) .* 1/r
+    gammamat[1,:] .*= [a2[1], -a2[2]]
+    gammamat[2,:] .*= [a2[2], a2[1]]
+    #gammamat = reshape([g1; g2; g3], (3, 3))
+
+    if det(gammamat) < 0
+        gammamat[:, 2] = - gammamat[:, 2]
+    end
+
+    return gammamat
+
+end
+
+
 
 
 function compute_designmatrix(zmat::Matrix{Float64}, k::Int64)::Array{Float64,3}
