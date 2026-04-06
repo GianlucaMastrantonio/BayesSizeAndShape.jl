@@ -609,12 +609,28 @@ function copy_parameters_out(imcmc::Int64, out::generalMCMCObjectOUT, mean_mcmc:
     out.nonidentsigma[imcmc,:,:] =  covariance_mcmc.covariance_mcmc[:,:]
     out.nonidentrmat[imcmc,:,:,:] = data_mcmc.rmat_mcmc[:,:,:]
     out.nonidentangle[imcmc,:,:] = data_mcmc.angles_mcmc[:,:]
-    
+    Raw_data = datamodel.nolocdata[:, :, 1]
+    n_points = size(Raw_data, 1)
+
+    max_dist_sq = -Inf
+    pair = (0, 0)
+
+    for i in 1:n_points
+        for j in (i + 1):n_points
+            diff = Raw_data[i, :] .- Raw_data[j, :]
+            dist_sq = sum(diff .^ 2)
+        
+            if dist_sq > max_dist_sq
+                max_dist_sq = dist_sq
+                pair = (i, j)
+            end
+        end
+    end
     M_raw = mean_mcmc.mean_mcmc[:, :, 1] # average configuration for the first iteration
-    M_anchored = M_raw .- M_raw[10, :]' # subtract the first row to have first landmark in (0,0)
-    r = sqrt(sum(M_anchored[1,:].^2)) # compute the distance from the origin
-    x = M_anchored[1,1]
-    y = M_anchored[1,2]
+    M_anchored = M_raw .- M_raw[pair[1], :]' # subtract the first row to have first landmark in (0,0)
+    r = sqrt(sum(M_anchored[pair[2],:].^2)) # compute the distance from the origin
+    x = M_anchored[pair[2],1]
+    y = M_anchored[pair[2],2]
     gammamat = [ x/r  -y/r ; 
              y/r   x/r ]
 

@@ -50,7 +50,8 @@ end
 
 
 
-function sample_predictive_zb(modeloutput::SizeAndShapeModelOutput{KeepReflection,RL,P,DoNotRemoveSize,GramSchmidtMean,<:MCMCNormalDataKeepSize,<:LinearMean,<:MCMCLinearMean,CT,CM,PS}) where {
+function sample_predictive_zb(modeloutput::SizeAndShapeModelOutput{KeepReflection,RL,P,DoNotRemoveSize,GramSchmidtMean,<:MCMCNormalDataKeepSize,<:LinearMean,<:MCMCLinearMean,CT,CM,PS}, 
+    idx1::Int64, idx2::Int64) where {
         RL<:RemoveLocation,
         CT<:TypeModelCoVariance,
         CM<:MCMCTypeModelCoVariance,
@@ -63,7 +64,7 @@ function sample_predictive_zb(modeloutput::SizeAndShapeModelOutput{KeepReflectio
     beta = modeloutput.posteriorsamples.identbeta
     rmat = modeloutput.posteriorsamples.identrmat
     nsim::Int64 = size(beta,1)
-
+    
     n::Int64 = modeloutput.datatype.n
     k::Int64 = modeloutput.datatype.k
     p::Int64 = modeloutput.datatype.p
@@ -77,8 +78,8 @@ function sample_predictive_zb(modeloutput::SizeAndShapeModelOutput{KeepReflectio
 
         for i = 1:size(beta,1) # for each iteration
             app .= reshape(Vector((designmatrix[:,:,iobs]*beta[i,:,:])[:]), k, p )
-            app .-= app[10,:]' 
-            v = app[1,:]
+            app .-= app[idx1,:]' 
+            v = app[idx2,:]
             r = sqrt(sum(v.^2))
             Q = [v[1]/r -v[2]/r; 
             v[2]/r  v[1]/r]
@@ -113,7 +114,8 @@ end
 
 
 
-function sample_predictive_zbr_plus_epsilon(modeloutput::SizeAndShapeModelOutput{KeepReflection,RL,P,DoNotRemoveSize,GramSchmidtMean,<:MCMCNormalDataKeepSize,<:LinearMean,<:MCMCLinearMean,CT,CM,PS}) where {
+function sample_predictive_zbr_plus_epsilon(modeloutput::SizeAndShapeModelOutput{KeepReflection,RL,P,DoNotRemoveSize,GramSchmidtMean,<:MCMCNormalDataKeepSize,<:LinearMean,<:MCMCLinearMean,CT,CM,PS}, 
+    idx1::Int64, idx2::Int64) where {
     RL<:RemoveLocation,
     CT<:TypeModelCoVariance,
     CM<:MCMCTypeModelCoVariance,
@@ -138,14 +140,14 @@ for iobs = 1:n
     
     for i = 1:size(beta,1)
         app .= reshape(Vector((designmatrix[:,:,iobs]*beta[i,:,:])[:]), k, p )
-        app .-= app[10,:]'
-        v = app[1,:]
+        app .-= app[idx1,:]'
+        v = app[idx2,:]
         r = sqrt(sum(v.^2))
         Q = [v[1]/r -v[2]/r; 
         v[2]/r  v[1]/r]
         app[:, :] .= app[:,:] * Q  *rmat[i,:,:,iobs]
     
-        res[i,((iobs-1)*k*p) .+ (1:(k*p))] = reshape(app, k*p, 1) +  vcat([Q*  rand(MvNormal([0.0 for i = 1:k],Symmetric(sigma[i,:,:]))) for iii = 1:p]...)
+        res[i,((iobs-1)*k*p) .+ (1:(k*p))] = reshape(app, k*p, 1) +  vcat([Q*rand(MvNormal([0.0 for i = 1:k],Symmetric(sigma[i,:,:]))) for iii = 1:p]...)
         
         
 
