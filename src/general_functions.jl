@@ -7,7 +7,7 @@ end
 function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
     a1 = reg[1, :]
-    a2 = reg[2, :]
+    a2 = reg[2,:]
     g1 = a1 / norm(a1, 2)
     g2 = (a2 - (transpose(a2) * g1) * g1) / norm(a2 - (transpose(a2) * g1) * g1, 2)
     gammamat = reshape([g1; g2], (2, 2))
@@ -44,26 +44,32 @@ function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP3, inden
 
 end
 
-#function standardize_reg(reg::Matrix{Float64}, valp::ValueP2)
 
-#    reg[:,:] = reg * standardize_reg_computegamma(reg, valp)
 
-#end
+# function standardize_reg_gimmi(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
-#function standardize_reg_computegamma(reg::Matrix{Float64}, valp::ValueP2)
+#     reg[:,:] = (reg .- reg[1,:]) * standardize_reg_computegamma_gimmi(reg, valp,indentifiability)
 
-#    a1 = reg[1, :]
-#    a2 = reg[2, :]
-#    g1 = a1 / norm(a1, 2)
-#    g2 = (a2 - (transpose(a2) * g1) * g1) / norm(a2 - (transpose(a2) * g1) * g1, 2)
-#    gammamat = reshape([g1; g2], (2, 2))
+# end
 
-#    if det(gammamat) < 0
-#        gammamat[:, 2] = - gammamat[:, 2]
-#    end
+# function standardize_reg_computegamma_gimmi(reg::Matrix{Float64}, valp::ValueP2, indentifiability::GramSchmidtMean)
 
-#    return gammamat
-#end
+#     a2 = (reg[2, :] - reg[1,:])
+#     r = sum(a2.^2)
+#     gammamat = ones(2, 2) .* 1/r
+#     gammamat[1,:] .*= [a2[1], -a2[2]]
+#     gammamat[2,:] .*= [a2[2], a2[1]]
+#     #gammamat = reshape([g1; g2; g3], (3, 3))
+
+#     if det(gammamat) < 0
+#         gammamat[:, 2] = - gammamat[:, 2]
+#     end
+
+#     return gammamat
+
+# end
+
+
 
 
 function compute_designmatrix(zmat::Matrix{Float64}, k::Int64)::Array{Float64,3}
@@ -90,7 +96,7 @@ function compute_designmatrix(zmat::DataFrame, k::Int64)::Array{Float64,3}
 
 end
 
-function remove_location(landmarks::Array{Float64,3}, removelocation::RemoveLocationHelmert)::Array{Float64,3} 
+function remove_location(landmarks::Array{Float64,3}, removelocation::DoRemoveLocation)::Array{Float64,3} 
     
     
     H = removelocation.matrix
@@ -180,38 +186,107 @@ function compute_sizeshape_fromnolocdata(landmarks::Array{Float64,3}, keepreflec
 end
 
 
-function create_designmatrix(fm::FormulaTerm, covariates::DataFrame, k::Int64 )::Tuple{Array{Float64, 3}, Int64, Vector{String}, Matrix{Float64}}
+# function create_designmatrix(fm::FormulaTerm, covariates::DataFrame, k::Int64 )::Tuple{Array{Float64, 3}, Int64, Vector{String}, Matrix{Float64}}
     
 
   
 
-    #println(covariates[1:3,:])
-    #error("")
-    covariates_copy = deepcopy(covariates)
-    for i = 1:size(covariates_copy,2)
-        if  isa(covariates_copy[:,i], CategoricalArray)
+#     #println(covariates[1:3,:])
+#     #error("")
+#     covariates_copy = deepcopy(covariates)
+#     for i = 1:size(covariates_copy,2)
+#         if  isa(covariates_copy[:,i], CategoricalArray)
 
-        elseif isa(covariates_copy[1,i], Real)
-            #covariates_copy[:,i] = (covariates_copy[:,i] .- mean(covariates_copy[:,i])) ./ std(covariates_copy[:,i])
-        else
+#         elseif isa(covariates_copy[1,i], Real)
+#             #covariates_copy[:,i] = (covariates_copy[:,i] .- mean(covariates_copy[:,i])) ./ std(covariates_copy[:,i])
+#         else
         
-            error("Only factors or Real variables are allowed in covariates")
+#             error("Only factors or Real variables are allowed in covariates")
+#         end
+#     end
+
+#     designmatrix_v2_app = ModelFrame(fm, covariates_copy);
+#     designmatrix_v2 = ModelMatrix(designmatrix_v2_app).m
+#     #println(designmatrix_v2[1:3,:])
+#     #error("")
+
+
+#     designmatrix = compute_designmatrix(designmatrix_v2, k) # dimensions  k, k * d, n
+
+#     @assert sum(designmatrix_v2[:, 1] .== 1) == size(designmatrix_v2,1) "intercept needed"
+    
+#     return designmatrix, size(designmatrix_v2,2), coefnames(designmatrix_v2_app), designmatrix_v2 
+
+# end
+
+function create_designmatrix(fm::FormulaTerm, covariates::DataFrame, k::Int64)::Tuple{Array{Float64, 3}, Int64, Vector{String}, Matrix{Float64}}
+    
+    covariates_copy = deepcopy(covariates)
+    terms_in_model = StatsModels.termvars(fm)
+    n = size(covariates_copy, 1)
+    X_parts = [ones(n)]  # intercetta
+    # coef_names = ["(Intercept)"]
+    continuous_vars = [v for v in terms_in_model if !isa(covariates[!, v], CategoricalArray) && !(eltype(covariates[!, v]) <: AbstractString)]
+    for v in continuous_vars
+        push!(X_parts, Float64.(covariates_copy[!, v]))
+        # push!(coef_names, String(v))
+    end
+
+    for col_name in names(covariates_copy)
+        if Symbol(col_name) ∉ terms_in_model
+        continue
+        end
+        col_data = covariates_copy[!, col_name]
+        
+        if isa(col_data, CategoricalArray) || eltype(col_data) <: AbstractString
+            cat_col = categorical(col_data) # define the categorical valyìue 
+            covariates_copy[!, col_name] = cat_col
+            lvls = levels(cat_col) # take the levels of the categorical variables
+            l = length(lvls) # how many levels? 
+            counts = [sum(cat_col .== lvl) for lvl  in lvls] # how many units are inside each level?
+            n_l = counts[end] # the last level is the reference group level
+            n = length(cat_col)
+            Z = zeros(n, l-1)
+
+            for i in 1:n
+                g = findfirst(==(cat_col[i]), lvls)  # indice gruppo osservazione i
+                
+                for j in 1:(l-1)
+                    n_j = counts[j]
+                    
+                    if g == j
+                        Z[i, j] = 2 * n_l / (n_j + n_l)
+                    elseif g == l
+                        Z[i, j] = -2 * n_j / (n_j + n_l)
+                    else
+                        Z[i, j] = 0.0
+                    end
+                end
+            end
+            for j in 1:size(Z, 2)
+                push!(X_parts, Z[:, j])
+            end
+                        
+            #custom_contrasts[Symbol(col_name)] = HypothesisCoding(h_mat', levels=lvls)
         end
     end
 
-    designmatrix_v2_app = ModelFrame(fm, covariates_copy);
-    designmatrix_v2 = ModelMatrix(designmatrix_v2_app).m
-    #println(designmatrix_v2[1:3,:])
-    #error("")
+    # Build ModelFrame with Eq 10 contrasts
+    designmatrix_v2_app = ModelFrame(fm, covariates_copy)
+    # designmatrix_v2 = ModelMatrix(designmatrix_v2_app).m
+    designmatrix_v2 = hcat(X_parts...) # concatenate all the parts of the design matrix
+    designmatrix = compute_designmatrix(designmatrix_v2, k) 
 
-
-    designmatrix = compute_designmatrix(designmatrix_v2, k) # dimensions  k, k * d, n
-
-    @assert sum(designmatrix_v2[:, 1] .== 1) == size(designmatrix_v2,1) "intercept needed"
+    @assert all(designmatrix_v2[:, 1] .== 1.0) "Intercept needed"
     
-    return designmatrix, size(designmatrix_v2,2), coefnames(designmatrix_v2_app), designmatrix_v2 
-
+    return designmatrix, size(designmatrix_v2, 2), coefnames(designmatrix_v2_app), designmatrix_v2 
 end
+
+
+
+
+
+
 
 
 function compute_yrdata(yrdata::Array{Float64,3}, ssdata::Array{Float64,3}, rmat::Array{Float64,3})

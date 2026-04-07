@@ -19,7 +19,7 @@ function generalSizeAndShapeMCMC(;
     meanmodel::String = ["linear"][1],
     covariancemodel::String = ["general_nocrosscorrelation"][1],
     keepreflection::String = ["no", "yes"][2],
-    removelocation::String = ["no", "helmert"][2],
+    removelocation::String = ["no", "helmert", "centering"][3],
     removesize::String = ["no", "norm"][2],
     rmatdosample::Bool = true,
     verbose::Bool = true
@@ -47,6 +47,7 @@ function generalSizeAndShapeMCMC(;
 
     locationinformation::RemoveLocation = RemoveLocationHelmert(k, valp);
     if removelocation == "helmert" locationinformation = RemoveLocationHelmert(k, valp);
+    elseif removelocation == "centering" locationinformation = RemoveLocationCentering(k, valp); #add also the centering possibility
     elseif removelocation == "no" locationinformation = DoNotRemoveLocation(kland, valp); error("removelocation == \"no\" not implemented")
     else error("removelocation should be in [\"no\", \"helmert\"]")
     end
